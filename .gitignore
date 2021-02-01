@@ -1,0 +1,16 @@
+.gradle
+.idea
+**/out
+**/build
+**/bin
+**/.settings
+**/.classpath
+**/.project
+**/*.log
+buildapi.sh
+buildauth.sh
+buildscheduler.sh
+deploy
+backup
+
+/logs

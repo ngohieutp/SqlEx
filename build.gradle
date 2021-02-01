@@ -1,0 +1,29 @@
+plugins {
+    id 'java'
+}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'com.vpbank.sqlex.Main'
+        )
+    }
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+dependencies {
+    compile group: 'mysql', name: 'mysql-connector-java', version: '5.1.49'
+    compile group: 'org.apache.poi', name: 'poi', version: '5.0.0'
+    compile group: 'commons-cli', name: 'commons-cli', version: '1.4'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+}
