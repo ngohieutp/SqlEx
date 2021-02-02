@@ -3,8 +3,8 @@ package com.vpbank.sqlex;
 
 import com.vpbank.sqlex.excel.*;
 import org.apache.commons.cli.*;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
 import java.nio.charset.Charset;
@@ -31,6 +31,7 @@ public class Main {
         DATA_MAPS.put("java.lang.Byte", NumberCellData.INSTANCE);
         DATA_MAPS.put("java.lang.Long", NumberCellData.INSTANCE);
         DATA_MAPS.put("java.lang.Number", NumberCellData.INSTANCE);
+        DATA_MAPS.put("java.math.BigDecimal", NumberCellData.INSTANCE);
         DATA_MAPS.put("java.util.Date", DateCellData.INSTANCE);
         DATA_MAPS.put("java.sql.Date", DateCellData.INSTANCE);
         DATA_MAPS.put("java.sql.Timestamp", DateCellData.INSTANCE);
@@ -62,8 +63,8 @@ public class Main {
         String exportOptValue = cmd.getOptionValue('e');
         boolean isExport = cmd.hasOption("e");
         String exportFile = isExport
-                ? (isBlank(exportOptValue) ? "export-" + System.currentTimeMillis() + ".xls"
-                : exportOptValue + (exportOptValue.toLowerCase().endsWith(".xls") ? "" : ".xls")) : null;
+                ? (isBlank(exportOptValue) ? "export-" + System.currentTimeMillis() + ".xlsx"
+                : exportOptValue + (exportOptValue.toLowerCase().endsWith(".xlsx") ? "" : ".xlsx")) : null;
 
         String configFile = isBlank(configOptValue) ? CONFIG_FILE : configOptValue;
 
@@ -128,7 +129,12 @@ public class Main {
     }
 
     private static void exportExcel(Connection conn, List<String> queries, OutputStream outputStream) throws SQLException, IOException {
-        Workbook workbook = new HSSFWorkbook();
+        Workbook workbook = new XSSFWorkbook();
+
+        CellStyle dateCellStyle = workbook.createCellStyle();
+        CreationHelper createHelper = workbook.getCreationHelper();
+        dateCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("yyyy-mm-dd hh:mm AM/PM"));
+
         int counter = 1;
         for (String query : queries) {
             System.out.println("Executing : " + query);
@@ -136,7 +142,7 @@ public class Main {
                 if (statement.execute(query)) {
                     Sheet sheet = workbook.createSheet("Sheet" + (counter++));
                     ResultSet resultSet = statement.getResultSet();
-                    int total = writeToSheet(workbook, sheet, resultSet);
+                    int total = writeToSheet(sheet, resultSet, dateCellStyle);
                     System.out.println("Total rows : " + total);
                 } else {
                     int updateCount = statement.getUpdateCount();
@@ -163,7 +169,7 @@ public class Main {
         }
     }
 
-    private static int writeToSheet(Workbook workbook, Sheet sheet, ResultSet resultSet) throws IOException, SQLException {
+    private static int writeToSheet(Sheet sheet, ResultSet resultSet, CellStyle dateCellStyle) throws IOException, SQLException {
         int total = 0;
         int rowIndex = 0;
         ResultSetMetaData metaData = resultSet.getMetaData();
@@ -185,10 +191,7 @@ public class Main {
                     cellData.setCellValue(cell, resultSet.getObject(i));
 
                     if (cellData instanceof DateCellData) {
-                        CellStyle cellStyle = workbook.createCellStyle();
-                        CreationHelper createHelper = workbook.getCreationHelper();
-                        cellStyle.setDataFormat(createHelper.createDataFormat().getFormat("yyyy-mm-dd hh:mm AM/PM"));
-                        cell.setCellStyle(cellStyle);
+                        cell.setCellStyle(dateCellStyle);
                     }
 
                 } catch (NullPointerException ex) {
