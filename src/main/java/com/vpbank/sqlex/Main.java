@@ -4,6 +4,7 @@ package com.vpbank.sqlex;
 import com.vpbank.sqlex.excel.*;
 import org.apache.commons.cli.*;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
@@ -129,19 +130,20 @@ public class Main {
     }
 
     private static void exportExcel(Connection conn, List<String> queries, OutputStream outputStream) throws SQLException, IOException {
-        Workbook workbook = new XSSFWorkbook();
+        Workbook workbook = new SXSSFWorkbook(100);
 
         CellStyle dateCellStyle = workbook.createCellStyle();
         CreationHelper createHelper = workbook.getCreationHelper();
         dateCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("yyyy-mm-dd hh:mm AM/PM"));
 
         int counter = 1;
+        ResultSet resultSet;
         for (String query : queries) {
             System.out.println("Executing : " + query);
-            try (Statement statement = conn.createStatement()) {
+            try (Statement statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
                 if (statement.execute(query)) {
                     Sheet sheet = workbook.createSheet("Sheet" + (counter++));
-                    ResultSet resultSet = statement.getResultSet();
+                    resultSet = statement.getResultSet();
                     int total = writeToSheet(sheet, resultSet, dateCellStyle);
                     System.out.println("Total rows : " + total);
                 } else {
@@ -156,7 +158,7 @@ public class Main {
     private static void showInConsole(Connection conn, List<String> queries) throws SQLException, IOException {
         for (String query : queries) {
             System.out.println("Executing : " + query);
-            try (Statement statement = conn.createStatement()) {
+            try (Statement statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
                 if (statement.execute(query)) {
                     ResultSet resultSet = statement.getResultSet();
                     resultSet.last();
@@ -181,13 +183,15 @@ public class Main {
             cell.setCellValue(metaData.getColumnLabel(i));
         }
 
+        Cell cell;
+        CellData cellData;
         while (resultSet.next()) {
             total++;
             Row row = sheet.createRow(rowIndex++);
             for (int i = 1; i <= columnCount; i++) {
                 try {
-                    Cell cell = row.createCell(i - 1);
-                    CellData cellData = DATA_MAPS.get(metaData.getColumnClassName(i));
+                    cell = row.createCell(i - 1);
+                    cellData = DATA_MAPS.get(metaData.getColumnClassName(i));
                     cellData.setCellValue(cell, resultSet.getObject(i));
 
                     if (cellData instanceof DateCellData) {
