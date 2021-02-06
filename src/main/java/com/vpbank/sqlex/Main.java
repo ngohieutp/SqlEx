@@ -12,6 +12,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.*;
+import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -63,7 +64,7 @@ public class Main {
         String fileOptValue = cmd.getOptionValue('f');
         String exportOptValue = cmd.getOptionValue('e');
         boolean isExport = cmd.hasOption("e");
-        String exportFile = isExport
+        String exportFilePath = isExport
                 ? (isBlank(exportOptValue) ? "export-" + System.currentTimeMillis() + ".xlsx"
                 : exportOptValue + (exportOptValue.toLowerCase().endsWith(".xlsx") ? "" : ".xlsx")) : null;
 
@@ -113,6 +114,7 @@ public class Main {
 
         try (Connection conn = DriverManager.getConnection(connectionUrl, properties)) {
             conn.setAutoCommit(false);
+            File exportFile = new File(exportFilePath);
             try {
                 if (isExport) {
                     try (OutputStream outputStream = new FileOutputStream(exportFile)) {
@@ -125,6 +127,7 @@ public class Main {
             } catch (SQLException ex) {
                 ex.printStackTrace();
                 conn.rollback();
+                exportFile.delete();
             }
         }
     }
@@ -139,16 +142,16 @@ public class Main {
         int counter = 1;
         ResultSet resultSet;
         for (String query : queries) {
-            System.out.println("Executing : " + query);
+            System.out.println("Executing at " + OffsetDateTime.now().toString() + "\r\n" + query);
             try (Statement statement = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
                 if (statement.execute(query)) {
                     Sheet sheet = workbook.createSheet("Sheet" + (counter++));
                     resultSet = statement.getResultSet();
                     int total = writeToSheet(sheet, resultSet, dateCellStyle);
-                    System.out.println("Total rows : " + total);
+                    System.out.println("Total rows : " + total + ", finish time " + OffsetDateTime.now().toString());
                 } else {
                     int updateCount = statement.getUpdateCount();
-                    System.out.println("Row updated: " + updateCount);
+                    System.out.println("Row updated: " + updateCount + ", finish time " + OffsetDateTime.now().toString());
                 }
             }
         }
@@ -157,15 +160,15 @@ public class Main {
 
     private static void showInConsole(Connection conn, List<String> queries) throws SQLException, IOException {
         for (String query : queries) {
-            System.out.println("Executing : " + query);
+            System.out.println("Executing at " + OffsetDateTime.now().toString() + "\r\n" + query);
             try (Statement statement = conn.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
                 if (statement.execute(query)) {
                     ResultSet resultSet = statement.getResultSet();
                     resultSet.last();
-                    System.out.println("Total rows : " + resultSet.getRow());
+                    System.out.println("Total rows : " + resultSet.getRow() + ", finish at " + OffsetDateTime.now().toString());
                 } else {
                     int updateCount = statement.getUpdateCount();
-                    System.out.println("Row updated: " + updateCount);
+                    System.out.println("Row updated: " + updateCount + ", finish at " + OffsetDateTime.now().toString());
                 }
             }
         }
